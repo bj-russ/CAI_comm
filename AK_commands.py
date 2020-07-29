@@ -5,3 +5,7 @@
 class ak_commands:
 
     def __init__(self):
+        pass
+
+    def AKON(ls):
+        
