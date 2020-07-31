@@ -4,7 +4,7 @@ import datetime
 import time
 import AK_format
 #import AK_commands as com
-import serial
+import socket
 import pandas as pd
 import os.path
 from os import path
@@ -43,23 +43,40 @@ def timer(completed, scheduled_time, current_time):     #This is used to initiat
 def HFID_automate():        #this controls the varification procedure for HFID and returns the reading.
     ext = False
     err = False
+    n_com = 1
     ak_convert = AK_format.ak_handler()
-    with serial.Serial('COM1') as ser:
-        ser.baudrate = 9600
-        ser.timeout = 1
-        while ext != True and err != True:
+    commands = [[]]
+    df = pd.read_csv('HFID_sequence.csv', names = ['Command', 'Condition'])    #update with sequence once functional
+    commands_ls = df['Command'].tolist()
+    condition = df['Condition'].tolist()
+    for i in commands_ls:
+        commands.append(i.split(' '))
+    commands = commands[1:]
+    len(commands)
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect((HOST, PORT))
+        while n_com <= len(commands) and not ext and not err:
             #get next message
-            msg = ['AKON','K0']
+            msg = commands.pop(0)
+            n_com += 1
             msg_ak = ak_convert.build_command(msg)
-         
+            outb = msg_ak.encode()
+                    
             #send message
-            ser.write(msg_ak.encode())
+            s.sendall(outb)
+            print("Sending", repr(outb), "to connection", HOST, PORT)
             #get resposne
+            data = s.recv(1024)
+            print("Received", repr(data))
             #rsp_ak = ser.read(8)
             rsp_ak = ""
-            rsp = ak_convert.demolish_response(rsp_ak)
+            rsp = ak_convert.demolish_response(data.decode())
+            print(n_com)
 
             #check for errors
+
+            #check condition and perform logic
 
 
 
@@ -76,6 +93,7 @@ try:
             print("Test Initiated")
             HFID_automate()
         else:
+            print('Waiting for scheduled time')
             time.sleep(1)
         
 except KeyboardInterrupt:
