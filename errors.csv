@@ -1,0 +1,15 @@
+1,No Flame
+2,Sample Pressure Failure
+3,Air Pressure Failure
+4,Fuel Pressure
+5,Burner Temp Failure
+6,Oven Temp Failure
+7,Cutter Temp Failure
+8,Pump Temp Failure
+9,EPC Coil Sample Failure
+10,EPC Coil Air Failure
+11,EPC Coil Fuel Failure
+12,Range Overflow
+13,ADC Range Overflow
+14,ADC Range Overflow
+15,Analyzer is not calibrated
