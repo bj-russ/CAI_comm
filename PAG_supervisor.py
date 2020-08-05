@@ -8,6 +8,7 @@ import socket
 import pandas as pd
 import os.path
 from os import path
+import statistics
 
 #load settings from config.cfg
 
@@ -82,6 +83,15 @@ def comms_wrapper(msg, ext, err, s, errors):
             log('HFID Error', error_str)
             return err, rsp
 
+        #elif rsp[2] has '#': #case where the displayed value is not valid on the instrument
+         #   pass
+
+        #elif resp[3] == 'NA': #case where the channel does not exist
+        #    pass
+
+        #elif rsp[2] == 'SE': #case where a syntax error occured
+            #pass
+
         else:
             send_success = True
             return err, rsp
@@ -130,7 +140,7 @@ def HFID_automate():        #this controls the varification procedure for HFID a
                         t += 5
 
                 elif cond_int == 3: #Wait 1 hr for warm-up. Check burner temps
-                    t_remaining = 10
+                    t_remaining = 3600
                     while t_remaining >= 0:
                         msg3 = ['ATEM', 'K0']
                         err, rsp = comms_wrapper(msg3, ext, err, s, errors)
@@ -138,8 +148,88 @@ def HFID_automate():        #this controls the varification procedure for HFID a
                         print("Waiting for burner to reach operating temp during 1 hr warmup. The current burner temp is " + str(t_burner) +". there is " +str(t_remaining) +"s remaining in the warmup period.")
                         time.sleep(5)
                         t_remaining -= 5
-                else:
-                    pass
+                elif cond_int == 4: #flow zero and perform zero cal.
+                    t = 0
+                    readings = []
+                    complete = False
+                    stability_criteria = 0.1
+                    while t < 600 and not complete:
+                        msg4 = ['AKON', 'K0']
+                        err, rsp = comms_wrapper(msg4, ext, err, s, errors)
+                        reading = rsp[2].replace("'",'')
+                        print(t, readings)
+                        if t < 10: #build rolling average
+                            readings.append(float(reading)) #assuming instrument in THC mode                            
+                        else:
+                            readings.pop(0)
+                            readings.append(float(reading))
+                            average_reading = sum(readings) / len(readings)    
+                            readings_std = statistics.stdev(readings)
+                            print("The average reading is " + str(average_reading) + " and the std is " + str(readings_std))
+                            if 2*readings_std < stability_criteria:
+                                #save cal value
+                                msg5 = ['SNKA', 'K0']
+                                err, rsp = comms_wrapper(msg5, ext, err, s, errors)
+                                complete = True
+                                print("The instrument was zeroed successfully")
+                            elif t == 599:
+                                print("The reading failed to stabilize in the alloted time. Exiting..")
+                                log("Error", "Failed to stabilize during zero calibration")
+                                err = True
+                            else:
+                                pass
+                        t += 1
+                        time.sleep(1)
+                    else:
+                        pass
+
+                elif cond_int == 5: #flow span and perform range cal.
+                    t = 0
+                    readings = []
+                    complete = False
+                    stability_criteria = 0.1
+                    while t < 600 and not complete:
+                        msg4 = ['AKON', 'K0']
+                        err, rsp = comms_wrapper(msg4, ext, err, s, errors)
+                        reading = rsp[2].replace("'",'')
+                        print(t, readings)
+                        if t < 10: #build rolling average
+                            readings.append(float(reading)) #assuming instrument in THC mode                            
+                        else:
+                            readings.pop(0)
+                            readings.append(float(reading))
+                            average_reading = sum(readings) / len(readings)    
+                            readings_std = statistics.stdev(readings)
+                            print("The average reading is " + str(average_reading) + " and the std is " + str(readings_std))
+                            if 2*readings_std < stability_criteria:
+                                #save cal value
+                                msg5 = ['SEKA', 'K0']
+                                err, rsp = comms_wrapper(msg5, ext, err, s, errors)
+                                complete = True
+                                print("The instrument was zeroed successfully")
+                            elif t == 599:
+                                print("The reading failed to stabilize in the alloted time. Exiting..")
+                                log("Error", "Failed to stabilize during zero calibration")
+                                err = True
+                            else:
+                                pass
+                        t += 1
+                        time.sleep(1)
+                    else:
+                        pass
+                elif cond_int == 6: #purge instrument with air.
+                    t_remaining = 15
+                    msg6 = ['SSPL', 'K0']
+                    err, rsp = comms_wrapper(msg6, ext, err, s, errors)
+                    while t_remaining >= 0:
+                        msg4 = ['AKON', 'K0']
+                        err, rsp = comms_wrapper(msg4, ext, err, s, errors)
+                        print("Purging instrument with air. " + str(t_remaining) +"s remaining..")
+                        time.sleep(5)
+                        t_remaining -= 5
+                    err, rsp = comms_wrapper(msg6, ext, err, s, errors)
+                    print("Purging complete")
+
             else:
                 pass
 
