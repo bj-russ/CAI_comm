@@ -1,5 +1,5 @@
 #This controls the automation of the PAG varification system. 
-
+import sys
 import datetime
 import time
 import AK_format
@@ -39,7 +39,22 @@ def timer(completed, scheduled_time, current_time):     #This is used to initiat
         completed = 0
         return False, completed
     else:                                                                   #wait and reiterate 
-        return False, completed          
+        return False, completed       
+
+def time_until_next_test(test_scheduled_time):      #hours only
+    hr = int(test_scheduled_time[:2])               #update this to split hr then convert to int
+    now = datetime.datetime.now().hour
+    time_current = datetime.datetime.now()
+    hour_current = now   
+    unit = 'hrs'
+    t_until_next = hr - now
+    if t_until_next < 0:
+        t_until_next += 24
+    if t_until_next == 1:
+        now = datetime.datetime.now().minute
+        t_until_next = 60 - now
+        unit = 'mins'
+    return t_until_next, unit
 
 def comms_wrapper(msg, ext, err, s, errors):
     ak_convert = AK_format.ak_handler()
@@ -50,10 +65,8 @@ def comms_wrapper(msg, ext, err, s, errors):
     while send_success != True and not err:  
         #send message
         s.sendall(outb)
-#        print("Sending", repr(outb), "to connection", HOST, PORT)
         #get resposne
         data = s.recv(1024)
- #       print("Received", repr(data))
         #rsp_ak = ser.read(8)
         rsp_ak = ""
         rsp = ak_convert.demolish_response(data.decode())                
@@ -82,7 +95,7 @@ def comms_wrapper(msg, ext, err, s, errors):
             err = True
             log('HFID Error', error_str)
             return err, rsp
-# the following are listed in the 700 manual but not the 600. Add if required
+        # the following are listed in the 700 manual but not the 600. Add if required
         #elif rsp[2] has '#': #case where the displayed value is not valid on the instrument
          #   pass
 
@@ -113,7 +126,8 @@ def HFID_automate():
                 err, rsp = comms_wrapper(msg, ext, err, s, errors)
                 t_oven = int(rsp[3])
                 if t_oven < 180:
-                    print("The oven temperature is currently " + str(t_oven) +". Waiting for temperature to reach >=180C before proceeding.")
+                    print("Waiting for oven temperature to reach > 180 C before proceeding.")
+                    print("    The oven temperature is currently", str(t_oven),"C", end = '\r')
                     time.sleep(10)
                 else:
                     print("The oven temperature is currently " + str(t_oven) +". Proceeding to next step.")
@@ -124,45 +138,47 @@ def HFID_automate():
             print("Burner ignition process started.")
         #monitor air/fuel pressures
         if not err:
-            t = 0
+            t = 10
             air = []
             fuel = []
             air_pass_condition = [10, 13]
             fuel_pass_condition = [10, 13]
-            print("Air Pressure,", "Fuel Pressure")
-            while t < 30:
+            print("Monitoring air and fuel pressure during startup.")
+            #print("Air Pressure,", "Fuel Pressure")
+            while t > 0:
                 msg = ['ADRU', 'K0']
                 err, rsp = comms_wrapper(msg, ext, err, s, errors)
                 if not err:
                     air.append(float(rsp[3].replace("'","")))
                     fuel.append(float(rsp[4].replace("'","")))
-                if t % 5 == 0:
-                    print(rsp[3], ",", rsp[4])
+                print('    Air pressure is', rsp[3], 'psi. Fuel pressure is', rsp[4], 'psi. Time remaining =',t,' ', end='\r')
                 time.sleep(1)
-                t += 1                               
+                t -= 1                               
             air_avg = sum(air[-5:]) / len(air[-5:])
             fuel_avg = sum(fuel[-5:]) / len(fuel[-5:])
             if air_pass_condition[0] < air_avg and air_pass_condition[1] > air_avg and fuel_pass_condition[0] < fuel_avg and fuel_pass_condition[1] > fuel_avg:
-                print('The air and fuel delivery pressures are within spec.')
+                print('The air and fuel delivery pressures are within spec.                               ')
             else:
-                print("The air or fuel delivery pressure are out of spec.")
+                print("The air or fuel delivery pressure are out of spec.                                ")
                 log("Error", "Pressure Failure, Air = " + str(air_avg) + ", Fuel = " + str(fuel_avg))
                 err = True               
         # 1 hr warmup
         if not err:
-            t_remaining = 30 #3600
+            t_remaining = 10 #3600
             t_burner_min = 350
+            print("Burner Warmup Started")
+            #print("Reading, ", "Time Remaining")
             while t_remaining >= 0:
                 msg = ['ATEM', 'K0']
                 err, rsp = comms_wrapper(msg, ext, err, s, errors)
                 t_burner = int(rsp[4])
-                print("Waiting for burner to reach operating temp during 1 hr warmup. The current burner temp is " + str(t_burner) +". there is " +str(t_remaining) +"s remaining in the warmup period.")
-                time.sleep(5)
-                t_remaining -= 5
+                print('    Burner temperature is', t_burner,'C. Time remaining =',t_remaining,' ', end='\r')
+                time.sleep(1)
+                t_remaining -= 1
             if t_burner > t_burner_min:
-                print("The burner has successfully preheated.")
+                print("The burner has successfully preheated.                     ")
             else:
-                print("The burner failed to preheat.")
+                print("The burner failed to preheat.                       ")
                 log("Error", "Burner preheat failure. T_burner =" +str(t_burner))
         # Set Manaul Range mode
         if not err:
@@ -173,84 +189,91 @@ def HFID_automate():
             print("The instrument range has been set to 2.")
         # Zero Calibration
         if not err:
-            t = 0
+            t_err =  300
+            t = t_err
             readings = []
             complete = False
             stability_criteria = 0.1
-            while t < 600 and not complete:
+            print("Zero Calibration Started")
+            #print("Reading:")
+            while t > 0 and not complete:
                 msg = ['AKON', 'K0']
                 err, rsp = comms_wrapper(msg, ext, err, s, errors)
                 reading = rsp[2].replace("'",'')
-                print(t, readings)
-                if t < 10: #build rolling average
+                print('    The current reading is',reading,'ppm. Time remaining until error =',t,' ',end='\r')
+                if t > t_err - 10: #build rolling average
                     readings.append(float(reading)) #assuming instrument in THC mode                            
                 else:       #check rolling average for stability
                     readings.pop(0)
                     readings.append(float(reading))
                     average_reading = sum(readings) / len(readings)    
                     readings_std = statistics.stdev(readings)
-                    print("The average reading is " + str(average_reading) + " and the std is " + str(readings_std))
+                    print("The average reading is " + str(average_reading) + " and the std is " + str(readings_std) +'          ')
                     if 2*readings_std < stability_criteria:
                         #save cal value
                         msg2 = ['SNKA', 'K0']
                         err, rsp = comms_wrapper(msg2, ext, err, s, errors)
                         complete = True
                         print("The instrument was zeroed successfully")
-                    elif t == 599:
-                        print("The reading failed to stabilize in the alloted time. Exiting..")
-                        log("Error", "Failed to stabilize during zero calibration")
-                        err = True
                     else:
                         pass
-                t += 1
-                time.sleep(1)             
+                t -= 1
+                time.sleep(1)
+            if t == 0:
+                print("The reading failed to stabilize in the alloted time. Exiting..      ")
+                log("Error", "Failed to stabilize during zero calibration")
+                err = True             
         # span calibration
         if not err:
-            t = 0
+            t_err = 300
+            t = t_err
             readings = []
             complete = False
             stability_criteria = 0.1
-            while t < 600 and not complete:
+            print("Span Calibration Started")
+            while t > 0 and not complete:
                 msg = ['AKON', 'K0']
                 err, rsp = comms_wrapper(msg, ext, err, s, errors)
                 reading = rsp[2].replace("'",'')
-                print(t, readings)
-                if t < 10: #build rolling average
+                print('    The current reading is',reading,'ppm. Time remaining until error =',t,' ',end='\r')
+                if t > t_err - 10: #build rolling average
                     readings.append(float(reading)) #assuming instrument in THC mode                            
                 else:
                     readings.pop(0)
                     readings.append(float(reading))
                     average_reading = sum(readings) / len(readings)    
                     readings_std = statistics.stdev(readings)
-                    print("The average reading is " + str(average_reading) + " and the std is " + str(readings_std))
+                    print("The average reading is " + str(average_reading) + " and the std is " + str(readings_std) +'          ')
                     if 2*readings_std < stability_criteria:
                         #save cal value
                         msg2 = ['SEKA', 'K0']
                         err, rsp = comms_wrapper(msg, ext, err, s, errors)
                         complete = True
-                        print("The instrument was spanned successfully")
-                    elif t == 599:
-                        print("The reading failed to stabilize in the alloted time. Exiting..")
-                        log("Error", "Failed to stabilize during span calibration")
-                        err = True
+                        print("The instrument was spanned successfully    ")                        
                     else:
                         pass
-                t += 1
+                t -= 1
                 time.sleep(1)
+            if t == 0:
+                print("The reading failed to stabilize in the alloted time. Exiting..     ")
+                log("Error", "Failed to stabilize during span calibration")
+                err = True
         # Check PAG 1
         if not err:
             #set solenoid for PAG 1
-            t = 0
+            t_err = 6
+            t = t_err
             readings = []
             complete = False
             stability_criteria = 0.1
             air_spec = 0.2
-            while t < 600 and not complete:
+            print("PAG #1 Check Started")
+            while t > 0 and not complete:
                 msg = ['AKON', 'K0']
                 err, rsp = comms_wrapper(msg, ext, err, s, errors)
                 reading = rsp[2].replace("'",'')
-                print(t, readings)
-                if t < 10: #build rolling average
+                print('    The current reading is',reading,'ppm. Time remaining until error =',t,' ',end='\r')
+                if t > t_err - 10: #build rolling average
                     readings.append(float(reading)) #assuming instrument in THC mode                            
                 else:
                     readings.pop(0)
@@ -270,29 +293,30 @@ def HFID_automate():
                             print("PAG #1 is NOT functioning")
                             complete = True
                             # Set PAG 1 indicator to FAIL
-                    elif t == 599:
-                        print("The reading failed to stabilize in the alloted time. Exiting..")
-                        log("Error", "PAG #1 Failed to stabilize during reading")
-                        err = True
                     else:
                         pass
-                t += 1
+                t -= 1
                 time.sleep(1)
+            if t == 0:
+                print("The reading failed to stabilize in the alloted time.              ")
+                log("Error", "PAG #1 Failed to stabilize during reading")
             # Reset solenoid to neutral setting.
         # check PAG 2
         if not err:
             #set solenoid for PAG 2
-            t = 0
+            t_err = 300
+            t = t_err
             readings = []
             complete = False
             stability_criteria = 0.1
             air_spec = 0.2
-            while t < 600 and not complete:
+            print("PAG #2 Check Started")
+            while t > 0 and not complete:
                 msg = ['AKON', 'K0']
                 err, rsp = comms_wrapper(msg, ext, err, s, errors)
                 reading = rsp[2].replace("'",'')
-                print(t, readings)
-                if t < 10: #build rolling average
+                print('    The current reading is',reading,'ppm. Time remaining until error =',t,' ',end='\r')
+                if t > t_err - 10: #build rolling average
                     readings.append(float(reading)) #assuming instrument in THC mode                            
                 else:
                     readings.pop(0)
@@ -306,33 +330,35 @@ def HFID_automate():
                             log("Test Result", "Successful completion. PAG #2 Air Reading = " + str(average_reading))                                
                             complete = True
                             print("PAG #2 is functioning as expected")
-                            #Set PAG 2 indicator to PASS
+                            # Set PAG 2 indicator to PASS
                         else:
-                            log("Test Results, 'Test Failure. PAG #2 Air Reading = " + str(average_reading))
+                            log("Test Results", "Test Failure. PAG #2 Air Reading = " + str(average_reading))
                             print("PAG #2 is NOT functioning")
                             complete = True
-                            #Set PAG 2 indicator to FAIL
-                    elif t == 599:
-                        print("The reading failed to stabilize in the alloted time. Exiting..")
-                        log("Error", "PAG #2 Failed to stabilize during reading")
-                        err = True
+                            # Set PAG 2 indicator to FAIL
                     else:
                         pass
-                t += 1
-                time.sleep(1)  
+                t -= 1
+                time.sleep(1)
+            if t == 0:
+                print("The reading failed to stabilize in the alloted time.              ")
+                log("Error", "PAG #1 Failed to stabilize during reading")
             # reset solenoid to neutral position
         # Stop Fuel flow (When complete or if error occurs)
-        # Stop Fuel Flow
+        if err: # reset error for shutdown comms
+            err = False
         err, rsp = comms_wrapper(['SPAU', 'K0'], ext, err, s, errors)
         print("Fuel flow to instrument stopped.")
         # Purge analyser for 5 mins
         t_remaining = 15
         msg = ['SSPL', 'K0']
         err, rsp = comms_wrapper(msg, ext, err, s, errors)
+        print("Purging instrument with air")
+        print("Time Remaining:")
         while t_remaining >= 0:
             msg4 = ['AKON', 'K0']
             err, rsp = comms_wrapper(msg4, ext, err, s, errors)
-            print("Purging instrument with air. " + str(t_remaining) +"s remaining..")
+            print(str(t_remaining) +"s")
             time.sleep(5)
             t_remaining -= 5
         err, rsp = comms_wrapper(msg, ext, err, s, errors) #check if this also shuts off zero gas. If not set to whatever initial state is
@@ -354,8 +380,9 @@ try:
             print("Test Initiated")
             HFID_automate()
         else:
-            print('Waiting for scheduled time')
-            time.sleep(1)
+            t_until_next, unit = time_until_next_test(test_scheduled_time)
+            print('Next test scheduled for ' + test_scheduled_time + ' Test will be started in ' + str(t_until_next), unit, end ='\r')
+            time.sleep(10)
         
 except KeyboardInterrupt:
     print("caught keyboard interrupt, exiting")
