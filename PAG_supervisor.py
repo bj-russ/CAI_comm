@@ -128,7 +128,7 @@ def HFID_automate():
                 if t_oven < 180:
                     print("Waiting for oven temperature to reach > 180 C before proceeding.")
                     print("    The oven temperature is currently", str(t_oven),"C", end = '\r')
-                    time.sleep(10)
+                    time.sleep(1)
                 else:
                     print("The oven temperature is currently " + str(t_oven) +". Proceeding to next step.")
         # Ignite
@@ -280,7 +280,7 @@ def HFID_automate():
                     readings.append(float(reading))
                     average_reading = sum(readings) / len(readings)    
                     readings_std = statistics.stdev(readings)
-                    print("The average reading is " + str(average_reading) + " and the std is " + str(readings_std))
+                    print("The average reading is " + str(average_reading) + " and the std is " + str(readings_std) +'        ')
                     if 2*readings_std < stability_criteria: #reading is stable
                         if average_reading < air_spec:
                             #Store Reading and log test as successful
@@ -323,7 +323,7 @@ def HFID_automate():
                     readings.append(float(reading))
                     average_reading = sum(readings) / len(readings)    
                     readings_std = statistics.stdev(readings)
-                    print("The average reading is " + str(average_reading) + " and the std is " + str(readings_std))
+                    print("The average reading is " + str(average_reading) + " and the std is " + str(readings_std) +'        ')
                     if 2*readings_std < stability_criteria: #reading is stable
                         if average_reading < air_spec:
                             #Store Reading and log test as successful
@@ -354,15 +354,15 @@ def HFID_automate():
         msg = ['SSPL', 'K0']
         err, rsp = comms_wrapper(msg, ext, err, s, errors)
         print("Purging instrument with air")
-        print("Time Remaining:")
         while t_remaining >= 0:
             msg4 = ['AKON', 'K0']
             err, rsp = comms_wrapper(msg4, ext, err, s, errors)
-            print(str(t_remaining) +"s")
-            time.sleep(5)
-            t_remaining -= 5
+            reading = rsp[2].replace("'",'')
+            print('Reading =', reading, 'Time remaining = ' + str(t_remaining) +" s ", end='\r')
+            time.sleep(1)
+            t_remaining -= 1
         err, rsp = comms_wrapper(msg, ext, err, s, errors) #check if this also shuts off zero gas. If not set to whatever initial state is
-        print("Purging complete")   
+        print("Purging complete                 ")   
         # Return instrument to manual mode
         err, rsp = comms_wrapper(['SMAN', 'K0'], ext, err, s, errors)
         print("Instrument returned to Manual mode. Test completed.")             
