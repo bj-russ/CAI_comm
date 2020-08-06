@@ -50,10 +50,10 @@ def comms_wrapper(msg, ext, err, s, errors):
     while send_success != True and not err:  
         #send message
         s.sendall(outb)
-        print("Sending", repr(outb), "to connection", HOST, PORT)
+#        print("Sending", repr(outb), "to connection", HOST, PORT)
         #get resposne
         data = s.recv(1024)
-        print("Received", repr(data))
+ #       print("Received", repr(data))
         #rsp_ak = ser.read(8)
         rsp_ak = ""
         rsp = ak_convert.demolish_response(data.decode())                
@@ -82,7 +82,7 @@ def comms_wrapper(msg, ext, err, s, errors):
             err = True
             log('HFID Error', error_str)
             return err, rsp
-
+# the following are listed in the 700 manual but not the 600. Add if required
         #elif rsp[2] has '#': #case where the displayed value is not valid on the instrument
          #   pass
 
@@ -96,145 +96,255 @@ def comms_wrapper(msg, ext, err, s, errors):
             send_success = True
             return err, rsp
 
-def HFID_automate():        #this controls the varification procedure for HFID and returns the reading.
+def HFID_automate():
     ext = False
     err = False
-    commands = [[]]
-    df = pd.read_csv('HFID_sequence.csv', names = ['Command', 'Condition'])    #update with sequence once functional
-    commands_ls = df['Command'].tolist()
-    condition = df['Condition'].tolist()
-    for i in commands_ls:
-        commands.append(i.split(' '))
-    commands = commands[1:]
+    # Reset PAG condition indicators to Off
     errors = pd.read_csv('errors.csv', names = ['Code', 'Error'])
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((HOST, PORT))
-        while len(commands) != 0 and not ext and not err:
-            #get next message
-            msg = commands.pop(0)
-            cond = condition.pop(0)
-            #send message
-            err, rsp = comms_wrapper(msg, ext, err, s, errors)
-            cond_int = int(cond)
-            #if cond == '0': #no condition, proceed to next command
-            #    print('cond == 0')
-            if not err:
-                if cond_int == 1: #check oven temp >180C
-                    t_oven = 0
-                    while t_oven < 180:
-                        msg1 = ['ATEM','K0']
-                        err, rsp = comms_wrapper(msg1, ext, err, s, errors)
-                        t_oven = int(rsp[3])
-                        if t_oven < 180:
-                            print("The oven temperature is currently " + str(t_oven) +". Waiting for temperature to reach >=180C before proceeding.")
-                            time.sleep(10)
-                        else:
-                            print("The oven temperature is currently " + str(t_oven) +". Proceeding to next step.")
-                elif cond_int == 2: #monitor fuel and air pressures, compare with instrument spec sheet.
-                    t = 0
-                    while t < 10:
-                        msg2 = ['ADRU', 'K0']
-                        err, rsp = comms_wrapper(msg2, ext, err, s, errors)
-                        print("The air and fuel pressures are " + rsp[3] +", " + rsp[4] + " psi respectively. Waiting 5 seconds to recheck before proceeding")
-                        time.sleep(5)
-                        t += 5
-
-                elif cond_int == 3: #Wait 1 hr for warm-up. Check burner temps
-                    t_remaining = 3600
-                    while t_remaining >= 0:
-                        msg3 = ['ATEM', 'K0']
-                        err, rsp = comms_wrapper(msg3, ext, err, s, errors)
-                        t_burner = int(rsp[4])
-                        print("Waiting for burner to reach operating temp during 1 hr warmup. The current burner temp is " + str(t_burner) +". there is " +str(t_remaining) +"s remaining in the warmup period.")
-                        time.sleep(5)
-                        t_remaining -= 5
-                elif cond_int == 4: #flow zero and perform zero cal.
-                    t = 0
-                    readings = []
-                    complete = False
-                    stability_criteria = 0.1
-                    while t < 600 and not complete:
-                        msg4 = ['AKON', 'K0']
-                        err, rsp = comms_wrapper(msg4, ext, err, s, errors)
-                        reading = rsp[2].replace("'",'')
-                        print(t, readings)
-                        if t < 10: #build rolling average
-                            readings.append(float(reading)) #assuming instrument in THC mode                            
-                        else:
-                            readings.pop(0)
-                            readings.append(float(reading))
-                            average_reading = sum(readings) / len(readings)    
-                            readings_std = statistics.stdev(readings)
-                            print("The average reading is " + str(average_reading) + " and the std is " + str(readings_std))
-                            if 2*readings_std < stability_criteria:
-                                #save cal value
-                                msg5 = ['SNKA', 'K0']
-                                err, rsp = comms_wrapper(msg5, ext, err, s, errors)
-                                complete = True
-                                print("The instrument was zeroed successfully")
-                            elif t == 599:
-                                print("The reading failed to stabilize in the alloted time. Exiting..")
-                                log("Error", "Failed to stabilize during zero calibration")
-                                err = True
-                            else:
-                                pass
-                        t += 1
-                        time.sleep(1)
-                    else:
-                        pass
-
-                elif cond_int == 5: #flow span and perform range cal.
-                    t = 0
-                    readings = []
-                    complete = False
-                    stability_criteria = 0.1
-                    while t < 600 and not complete:
-                        msg4 = ['AKON', 'K0']
-                        err, rsp = comms_wrapper(msg4, ext, err, s, errors)
-                        reading = rsp[2].replace("'",'')
-                        print(t, readings)
-                        if t < 10: #build rolling average
-                            readings.append(float(reading)) #assuming instrument in THC mode                            
-                        else:
-                            readings.pop(0)
-                            readings.append(float(reading))
-                            average_reading = sum(readings) / len(readings)    
-                            readings_std = statistics.stdev(readings)
-                            print("The average reading is " + str(average_reading) + " and the std is " + str(readings_std))
-                            if 2*readings_std < stability_criteria:
-                                #save cal value
-                                msg5 = ['SEKA', 'K0']
-                                err, rsp = comms_wrapper(msg5, ext, err, s, errors)
-                                complete = True
-                                print("The instrument was zeroed successfully")
-                            elif t == 599:
-                                print("The reading failed to stabilize in the alloted time. Exiting..")
-                                log("Error", "Failed to stabilize during zero calibration")
-                                err = True
-                            else:
-                                pass
-                        t += 1
-                        time.sleep(1)
-                    else:
-                        pass
-                elif cond_int == 6: #purge instrument with air.
-                    t_remaining = 15
-                    msg6 = ['SSPL', 'K0']
-                    err, rsp = comms_wrapper(msg6, ext, err, s, errors)
-                    while t_remaining >= 0:
-                        msg4 = ['AKON', 'K0']
-                        err, rsp = comms_wrapper(msg4, ext, err, s, errors)
-                        print("Purging instrument with air. " + str(t_remaining) +"s remaining..")
-                        time.sleep(5)
-                        t_remaining -= 5
-                    err, rsp = comms_wrapper(msg6, ext, err, s, errors)
-                    print("Purging complete")
-
+        #Set Remote
+        err, rsp = comms_wrapper(['SREM', 'K0'], ext, err, s, errors)
+        #Check Oven Temp
+        if not err:
+            t_oven = 0
+            while t_oven < 180:
+                msg = ['ATEM','K0']
+                err, rsp = comms_wrapper(msg, ext, err, s, errors)
+                t_oven = int(rsp[3])
+                if t_oven < 180:
+                    print("The oven temperature is currently " + str(t_oven) +". Waiting for temperature to reach >=180C before proceeding.")
+                    time.sleep(10)
+                else:
+                    print("The oven temperature is currently " + str(t_oven) +". Proceeding to next step.")
+        # Ignite
+        if not err:
+            msg = ['STBY','K0']
+            err, rsp = comms_wrapper(msg, ext, err, s, errors) 
+            print("Burner ignition process started.")
+        #monitor air/fuel pressures
+        if not err:
+            t = 0
+            air = []
+            fuel = []
+            air_pass_condition = [10, 13]
+            fuel_pass_condition = [10, 13]
+            print("Air Pressure,", "Fuel Pressure")
+            while t < 30:
+                msg = ['ADRU', 'K0']
+                err, rsp = comms_wrapper(msg, ext, err, s, errors)
+                if not err:
+                    air.append(float(rsp[3].replace("'","")))
+                    fuel.append(float(rsp[4].replace("'","")))
+                if t % 5 == 0:
+                    print(rsp[3], ",", rsp[4])
+                time.sleep(1)
+                t += 1                               
+            air_avg = sum(air[-5:]) / len(air[-5:])
+            fuel_avg = sum(fuel[-5:]) / len(fuel[-5:])
+            if air_pass_condition[0] < air_avg and air_pass_condition[1] > air_avg and fuel_pass_condition[0] < fuel_avg and fuel_pass_condition[1] > fuel_avg:
+                print('The air and fuel delivery pressures are within spec.')
             else:
-                pass
+                print("The air or fuel delivery pressure are out of spec.")
+                log("Error", "Pressure Failure, Air = " + str(air_avg) + ", Fuel = " + str(fuel_avg))
+                err = True               
+        # 1 hr warmup
+        if not err:
+            t_remaining = 30 #3600
+            t_burner_min = 350
+            while t_remaining >= 0:
+                msg = ['ATEM', 'K0']
+                err, rsp = comms_wrapper(msg, ext, err, s, errors)
+                t_burner = int(rsp[4])
+                print("Waiting for burner to reach operating temp during 1 hr warmup. The current burner temp is " + str(t_burner) +". there is " +str(t_remaining) +"s remaining in the warmup period.")
+                time.sleep(5)
+                t_remaining -= 5
+            if t_burner > t_burner_min:
+                print("The burner has successfully preheated.")
+            else:
+                print("The burner failed to preheat.")
+                log("Error", "Burner preheat failure. T_burner =" +str(t_burner))
+        # Set Manaul Range mode
+        if not err:
+            err, rsp = comms_wrapper(['SARA', 'K0'], ext, err, s, errors) 
+        # Set Range
+        if not err:
+            err, rsp = comms_wrapper(['SEMB', 'K0', '2'], ext, err, s, errors) # confirm range and how to select desired range
+            print("The instrument range has been set to 2.")
+        # Zero Calibration
+        if not err:
+            t = 0
+            readings = []
+            complete = False
+            stability_criteria = 0.1
+            while t < 600 and not complete:
+                msg = ['AKON', 'K0']
+                err, rsp = comms_wrapper(msg, ext, err, s, errors)
+                reading = rsp[2].replace("'",'')
+                print(t, readings)
+                if t < 10: #build rolling average
+                    readings.append(float(reading)) #assuming instrument in THC mode                            
+                else:       #check rolling average for stability
+                    readings.pop(0)
+                    readings.append(float(reading))
+                    average_reading = sum(readings) / len(readings)    
+                    readings_std = statistics.stdev(readings)
+                    print("The average reading is " + str(average_reading) + " and the std is " + str(readings_std))
+                    if 2*readings_std < stability_criteria:
+                        #save cal value
+                        msg2 = ['SNKA', 'K0']
+                        err, rsp = comms_wrapper(msg2, ext, err, s, errors)
+                        complete = True
+                        print("The instrument was zeroed successfully")
+                    elif t == 599:
+                        print("The reading failed to stabilize in the alloted time. Exiting..")
+                        log("Error", "Failed to stabilize during zero calibration")
+                        err = True
+                    else:
+                        pass
+                t += 1
+                time.sleep(1)             
+        # span calibration
+        if not err:
+            t = 0
+            readings = []
+            complete = False
+            stability_criteria = 0.1
+            while t < 600 and not complete:
+                msg = ['AKON', 'K0']
+                err, rsp = comms_wrapper(msg, ext, err, s, errors)
+                reading = rsp[2].replace("'",'')
+                print(t, readings)
+                if t < 10: #build rolling average
+                    readings.append(float(reading)) #assuming instrument in THC mode                            
+                else:
+                    readings.pop(0)
+                    readings.append(float(reading))
+                    average_reading = sum(readings) / len(readings)    
+                    readings_std = statistics.stdev(readings)
+                    print("The average reading is " + str(average_reading) + " and the std is " + str(readings_std))
+                    if 2*readings_std < stability_criteria:
+                        #save cal value
+                        msg2 = ['SEKA', 'K0']
+                        err, rsp = comms_wrapper(msg, ext, err, s, errors)
+                        complete = True
+                        print("The instrument was spanned successfully")
+                    elif t == 599:
+                        print("The reading failed to stabilize in the alloted time. Exiting..")
+                        log("Error", "Failed to stabilize during span calibration")
+                        err = True
+                    else:
+                        pass
+                t += 1
+                time.sleep(1)
+        # Check PAG 1
+        if not err:
+            #set solenoid for PAG 1
+            t = 0
+            readings = []
+            complete = False
+            stability_criteria = 0.1
+            air_spec = 0.2
+            while t < 600 and not complete:
+                msg = ['AKON', 'K0']
+                err, rsp = comms_wrapper(msg, ext, err, s, errors)
+                reading = rsp[2].replace("'",'')
+                print(t, readings)
+                if t < 10: #build rolling average
+                    readings.append(float(reading)) #assuming instrument in THC mode                            
+                else:
+                    readings.pop(0)
+                    readings.append(float(reading))
+                    average_reading = sum(readings) / len(readings)    
+                    readings_std = statistics.stdev(readings)
+                    print("The average reading is " + str(average_reading) + " and the std is " + str(readings_std))
+                    if 2*readings_std < stability_criteria: #reading is stable
+                        if average_reading < air_spec:
+                            #Store Reading and log test as successful
+                            log("Test Result", "Successful completion. PAG #1 Air Reading = " + str(average_reading))                                
+                            complete = True
+                            print("PAG #1 is functioning as expected")
+                            # Set PAG 1 indicator to PASS
+                        else:
+                            log("Test Results", "Test Failure. PAG #1 Air Reading = " + str(average_reading))
+                            print("PAG #1 is NOT functioning")
+                            complete = True
+                            # Set PAG 1 indicator to FAIL
+                    elif t == 599:
+                        print("The reading failed to stabilize in the alloted time. Exiting..")
+                        log("Error", "PAG #1 Failed to stabilize during reading")
+                        err = True
+                    else:
+                        pass
+                t += 1
+                time.sleep(1)
+            # Reset solenoid to neutral setting.
+        # check PAG 2
+        if not err:
+            #set solenoid for PAG 2
+            t = 0
+            readings = []
+            complete = False
+            stability_criteria = 0.1
+            air_spec = 0.2
+            while t < 600 and not complete:
+                msg = ['AKON', 'K0']
+                err, rsp = comms_wrapper(msg, ext, err, s, errors)
+                reading = rsp[2].replace("'",'')
+                print(t, readings)
+                if t < 10: #build rolling average
+                    readings.append(float(reading)) #assuming instrument in THC mode                            
+                else:
+                    readings.pop(0)
+                    readings.append(float(reading))
+                    average_reading = sum(readings) / len(readings)    
+                    readings_std = statistics.stdev(readings)
+                    print("The average reading is " + str(average_reading) + " and the std is " + str(readings_std))
+                    if 2*readings_std < stability_criteria: #reading is stable
+                        if average_reading < air_spec:
+                            #Store Reading and log test as successful
+                            log("Test Result", "Successful completion. PAG #2 Air Reading = " + str(average_reading))                                
+                            complete = True
+                            print("PAG #2 is functioning as expected")
+                            #Set PAG 2 indicator to PASS
+                        else:
+                            log("Test Results, 'Test Failure. PAG #2 Air Reading = " + str(average_reading))
+                            print("PAG #2 is NOT functioning")
+                            complete = True
+                            #Set PAG 2 indicator to FAIL
+                    elif t == 599:
+                        print("The reading failed to stabilize in the alloted time. Exiting..")
+                        log("Error", "PAG #2 Failed to stabilize during reading")
+                        err = True
+                    else:
+                        pass
+                t += 1
+                time.sleep(1)  
+            # reset solenoid to neutral position
+        # Stop Fuel flow (When complete or if error occurs)
+        # Stop Fuel Flow
+        err, rsp = comms_wrapper(['SPAU', 'K0'], ext, err, s, errors)
+        print("Fuel flow to instrument stopped.")
+        # Purge analyser for 5 mins
+        t_remaining = 15
+        msg = ['SSPL', 'K0']
+        err, rsp = comms_wrapper(msg, ext, err, s, errors)
+        while t_remaining >= 0:
+            msg4 = ['AKON', 'K0']
+            err, rsp = comms_wrapper(msg4, ext, err, s, errors)
+            print("Purging instrument with air. " + str(t_remaining) +"s remaining..")
+            time.sleep(5)
+            t_remaining -= 5
+        err, rsp = comms_wrapper(msg, ext, err, s, errors) #check if this also shuts off zero gas. If not set to whatever initial state is
+        print("Purging complete")   
+        # Return instrument to manual mode
+        err, rsp = comms_wrapper(['SMAN', 'K0'], ext, err, s, errors)
+        print("Instrument returned to Manual mode. Test completed.")             
+
+            
 
 #main program operation
-completed = 0
+completed = 0 #used as indicator if test has been run already today
 try:
     while True:
         time_current = datetime.datetime.now()

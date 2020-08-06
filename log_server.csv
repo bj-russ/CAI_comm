@@ -1,5 +1,5 @@
-0,Received from Client,AMDT K0
-0,Sent to Client,b'\x02 AMDT 0 0.06952 98.65 296.35 0.35 0 0 0 0.06952 0.00185 24.567 \x03 '
+0,Received from Client,SREM K0
+0,Sent to Client,b'\x02 SREM 0 \x03 '
 0,Received from Client,AKON K0
 0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
 0,Received from Client,AKON K0
@@ -24,8 +24,6 @@
 0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
 0,Received from Client,SNKA K0
 0,Sent to Client,b'\x02 SNKA 0 \x03 '
-0,Received from Client,AZMW K0
-0,Sent to Client,b'\x02 AZMW 0 0.06952 0 0 98.65 0.35 0.82693 296.35 0 300 98.802 97.9608 0 34.56 0.06952 14.18 0.00185 301.939 306.856 309.309 308.924 307.429 326.476 297.717 # # # # # # # # # # \x03 '
 0,Received from Client,AKON K0
 0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
 0,Received from Client,AKON K0
@@ -48,10 +46,54 @@
 0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
 0,Received from Client,AKON K0
 0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
-0,Received from Client,SEKA K0
-0,Sent to Client,b'\x02 SEKA 0 \x03 '
-0,Received from Client,ASTF K0
-0,Sent to Client,b'\x02 ASTF 0 \x03 '
+0,Received from Client,AKON K0
+0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
+0,Received from Client,AKON K0
+0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
+0,Received from Client,AKON K0
+0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
+0,Received from Client,AKON K0
+0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
+0,Received from Client,AKON K0
+0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
+0,Received from Client,AKON K0
+0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
+0,Received from Client,AKON K0
+0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
+0,Received from Client,AKON K0
+0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
+0,Received from Client,AKON K0
+0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
+0,Received from Client,AKON K0
+0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
+0,Received from Client,AKON K0
+0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
+0,Received from Client,AKON K0
+0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
+0,Received from Client,AKON K0
+0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
+0,Received from Client,AKON K0
+0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
+0,Received from Client,AKON K0
+0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
+0,Received from Client,AKON K0
+0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
+0,Received from Client,AKON K0
+0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
+0,Received from Client,AKON K0
+0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
+0,Received from Client,AKON K0
+0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
+0,Received from Client,AKON K0
+0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
+0,Received from Client,AKON K0
+0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
+0,Received from Client,AKON K0
+0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
+0,Received from Client,AKON K0
+0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
+0,Received from Client,SPAU K0
+0,Sent to Client,b'\x02 SPAU 0 \x03 '
 0,Received from Client,SSPL K0
 0,Sent to Client,b'\x02 SSPL 0 \x03 '
 0,Received from Client,AKON K0
@@ -64,13 +106,5 @@
 0,Sent to Client,b'\x02 AKON 0 0.2 \x03 '
 0,Received from Client,SSPL K0
 0,Sent to Client,b'\x02 SSPL 0 \x03 '
-0,Received from Client,ERRR K0
-0,Sent to Client,b'\x02 ???? 0 \x03 '
-0,Received from Client,ERRR K0
-0,Sent to Client,b'\x02 ???? 0 \x03 '
-0,Received from Client,ERRR K0
-0,Sent to Client,b'\x02 ???? 0 \x03 '
-0,Received from Client,ERRR K0
-0,Sent to Client,b'\x02 ???? 0 \x03 '
-0,Received from Client,ERRR K0
-0,Sent to Client,b'\x02 ???? 0 \x03 '
+0,Received from Client,SMAN K0
+0,Sent to Client,b'\x02 SMAN 0 \x03 '
