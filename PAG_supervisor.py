@@ -18,6 +18,9 @@ HOST = config.iloc[0,0]
 PORT = config.iloc[0,1]
 test_scheduled_time = config.iloc[0,2] 
 #add additional settings here
+ext = False
+err = False
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 #define functions
 
@@ -56,7 +59,8 @@ def time_until_next_test(test_scheduled_time):      #hours only
         unit = 'mins'
     return t_until_next, unit
 
-def comms_wrapper(msg, ext, err, s, errors):
+def comms_wrapper(msg):
+    global ext, err, s, errors
     ak_convert = AK_format.ak_handler()
     msg_ak = ak_convert.build_command(msg)
     outb = msg_ak.encode()
@@ -110,20 +114,21 @@ def comms_wrapper(msg, ext, err, s, errors):
             return err, rsp
 
 def HFID_automate():
-    ext = False
-    err = False
+    global ext, err, s
+    #ext = False
+    #err = False
     # Reset PAG condition indicators to Off
     errors = pd.read_csv('errors.csv', names = ['Code', 'Error'])
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    with s:
         s.connect((HOST, PORT))
         #Set Remote
-        err, rsp = comms_wrapper(['SREM', 'K0'], ext, err, s, errors)
+        err, rsp = comms_wrapper(['SREM', 'K0'])
         #Check Oven Temp
         if not err:
             t_oven = 0
             while t_oven < 180:
                 msg = ['ATEM','K0']
-                err, rsp = comms_wrapper(msg, ext, err, s, errors)
+                err, rsp = comms_wrapper(msg)
                 t_oven = int(rsp[3])
                 if t_oven < 180:
                     print("Waiting for oven temperature to reach > 180 C before proceeding.")
@@ -134,7 +139,7 @@ def HFID_automate():
         # Ignite
         if not err:
             msg = ['STBY','K0']
-            err, rsp = comms_wrapper(msg, ext, err, s, errors) 
+            err, rsp = comms_wrapper(msg) 
             print("Burner ignition process started.")
         #monitor air/fuel pressures
         if not err:
@@ -147,7 +152,7 @@ def HFID_automate():
             #print("Air Pressure,", "Fuel Pressure")
             while t > 0:
                 msg = ['ADRU', 'K0']
-                err, rsp = comms_wrapper(msg, ext, err, s, errors)
+                err, rsp = comms_wrapper(msg)
                 if not err:
                     air.append(float(rsp[3].replace("'","")))
                     fuel.append(float(rsp[4].replace("'","")))
@@ -170,7 +175,7 @@ def HFID_automate():
             #print("Reading, ", "Time Remaining")
             while t_remaining >= 0:
                 msg = ['ATEM', 'K0']
-                err, rsp = comms_wrapper(msg, ext, err, s, errors)
+                err, rsp = comms_wrapper(msg)
                 t_burner = int(rsp[4])
                 print('    Burner temperature is', t_burner,'C. Time remaining =',t_remaining,' ', end='\r')
                 time.sleep(1)
@@ -182,10 +187,10 @@ def HFID_automate():
                 log("Error", "Burner preheat failure. T_burner =" +str(t_burner))
         # Set Manaul Range mode
         if not err:
-            err, rsp = comms_wrapper(['SARA', 'K0'], ext, err, s, errors) 
+            err, rsp = comms_wrapper(['SARA', 'K0']) 
         # Set Range
         if not err:
-            err, rsp = comms_wrapper(['SEMB', 'K0', '2'], ext, err, s, errors) # confirm range and how to select desired range
+            err, rsp = comms_wrapper(['SEMB', 'K0', '2']) # confirm range and how to select desired range
             print("The instrument range has been set to 2.")
         # Zero Calibration
         if not err:
@@ -198,7 +203,7 @@ def HFID_automate():
             #print("Reading:")
             while t > 0 and not complete:
                 msg = ['AKON', 'K0']
-                err, rsp = comms_wrapper(msg, ext, err, s, errors)
+                err, rsp = comms_wrapper(msg)
                 reading = rsp[2].replace("'",'')
                 print('    The current reading is',reading,'ppm. Time remaining until error =',t,' ',end='\r')
                 if t > t_err - 10: #build rolling average
@@ -212,7 +217,7 @@ def HFID_automate():
                     if 2*readings_std < stability_criteria:
                         #save cal value
                         msg2 = ['SNKA', 'K0']
-                        err, rsp = comms_wrapper(msg2, ext, err, s, errors)
+                        err, rsp = comms_wrapper(msg2)
                         complete = True
                         print("The instrument was zeroed successfully")
                     else:
@@ -233,7 +238,7 @@ def HFID_automate():
             print("Span Calibration Started")
             while t > 0 and not complete:
                 msg = ['AKON', 'K0']
-                err, rsp = comms_wrapper(msg, ext, err, s, errors)
+                err, rsp = comms_wrapper(msg)
                 reading = rsp[2].replace("'",'')
                 print('    The current reading is',reading,'ppm. Time remaining until error =',t,' ',end='\r')
                 if t > t_err - 10: #build rolling average
@@ -247,7 +252,7 @@ def HFID_automate():
                     if 2*readings_std < stability_criteria:
                         #save cal value
                         msg2 = ['SEKA', 'K0']
-                        err, rsp = comms_wrapper(msg, ext, err, s, errors)
+                        err, rsp = comms_wrapper(msg)
                         complete = True
                         print("The instrument was spanned successfully    ")                        
                     else:
@@ -270,7 +275,7 @@ def HFID_automate():
             print("PAG #1 Check Started")
             while t > 0 and not complete:
                 msg = ['AKON', 'K0']
-                err, rsp = comms_wrapper(msg, ext, err, s, errors)
+                err, rsp = comms_wrapper(msg)
                 reading = rsp[2].replace("'",'')
                 print('    The current reading is',reading,'ppm. Time remaining until error =',t,' ',end='\r')
                 if t > t_err - 10: #build rolling average
@@ -313,7 +318,7 @@ def HFID_automate():
             print("PAG #2 Check Started")
             while t > 0 and not complete:
                 msg = ['AKON', 'K0']
-                err, rsp = comms_wrapper(msg, ext, err, s, errors)
+                err, rsp = comms_wrapper(msg)
                 reading = rsp[2].replace("'",'')
                 print('    The current reading is',reading,'ppm. Time remaining until error =',t,' ',end='\r')
                 if t > t_err - 10: #build rolling average
@@ -347,24 +352,24 @@ def HFID_automate():
         # Stop Fuel flow (When complete or if error occurs)
         if err: # reset error for shutdown comms
             err = False
-        err, rsp = comms_wrapper(['SPAU', 'K0'], ext, err, s, errors)
+        err, rsp = comms_wrapper(['SPAU', 'K0'])
         print("Fuel flow to instrument stopped.")
         # Purge analyser for 5 mins
         t_remaining = 15
         msg = ['SSPL', 'K0']
-        err, rsp = comms_wrapper(msg, ext, err, s, errors)
+        err, rsp = comms_wrapper(msg)
         print("Purging instrument with air")
         while t_remaining >= 0:
             msg4 = ['AKON', 'K0']
-            err, rsp = comms_wrapper(msg4, ext, err, s, errors)
+            err, rsp = comms_wrapper(msg4)
             reading = rsp[2].replace("'",'')
             print('Reading =', reading, 'Time remaining = ' + str(t_remaining) +" s ", end='\r')
             time.sleep(1)
             t_remaining -= 1
-        err, rsp = comms_wrapper(msg, ext, err, s, errors) #check if this also shuts off zero gas. If not set to whatever initial state is
+        err, rsp = comms_wrapper(msg) #check if this also shuts off zero gas. If not set to whatever initial state is
         print("Purging complete                 ")   
         # Return instrument to manual mode
-        err, rsp = comms_wrapper(['SMAN', 'K0'], ext, err, s, errors)
+        err, rsp = comms_wrapper(['SMAN', 'K0'])
         print("Instrument returned to Manual mode. Test completed.")             
 
             
