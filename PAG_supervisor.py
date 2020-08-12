@@ -18,9 +18,11 @@ HOST = config.iloc[0,0]
 PORT = config.iloc[0,1]
 test_scheduled_time = config.iloc[0,2] 
 #add additional settings here
+
 ext = False
 err = False
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+errors = pd.read_csv('errors.csv', names = ['Code', 'Error'])
 
 #define functions
 
@@ -71,7 +73,6 @@ def comms_wrapper(msg):
         s.sendall(outb)
         #get resposne
         data = s.recv(1024)
-        #rsp_ak = ser.read(8)
         rsp_ak = ""
         rsp = ak_convert.demolish_response(data.decode())                
         #check for errors
@@ -115,10 +116,7 @@ def comms_wrapper(msg):
 
 def HFID_automate():
     global ext, err, s
-    #ext = False
-    #err = False
     # Reset PAG condition indicators to Off
-    errors = pd.read_csv('errors.csv', names = ['Code', 'Error'])
     with s:
         s.connect((HOST, PORT))
         #Set Remote
