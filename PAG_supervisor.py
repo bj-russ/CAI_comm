@@ -365,7 +365,7 @@ def HFID_automate():
             time.sleep(1)
             t_remaining -= 1
         err, rsp = comms_wrapper(msg) #check if this also shuts off zero gas. If not set to whatever initial state is
-        print("Purging complete                 ")   
+        print("Purging complete                  ")   
         # Return instrument to manual mode
         err, rsp = comms_wrapper(['SMAN', 'K0'])
         print("Instrument returned to Manual mode. Test completed.")             
