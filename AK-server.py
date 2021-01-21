@@ -6,6 +6,7 @@ import selectors
 import types
 import pandas as pd
 import AK_format
+from time import sleep
 
 sel = selectors.DefaultSelector()                                   # initiate the selector module (used for parallel use of sockets)
 
@@ -123,14 +124,15 @@ sel.register(lsock, selectors.EVENT_READ, data=None)            # register the s
 
 #-----configure new connections and service active connections as needed------
 
-try:                            
+try: 
     while True:                                                 # loop forever
-        events = sel.select(timeout=None)                       # wait for read selector event (EVENT_READ)
+        events = sel.select(timeout=1)                       # wait for read selector event (EVENT_READ)
         for key, mask in events:                                # access key and mask for use in determining what to do
             if key.data is None:                                # if there is no data, this is a new connection that needs to be accepted.
                 accept_wrapper(key.fileobj)
             else:                                               # if there is data, this is an established connected that needs to be serviced.
                 service_connection(key, mask)
+                sleep(0.01)
                 
 except KeyboardInterrupt:
     print("caught keyboard interrupt, exiting")
