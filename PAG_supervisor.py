@@ -119,7 +119,7 @@ def HFID_automate():
     # Reset PAG condition indicators to Off
     with s:
         s.connect((HOST, PORT))
-        #Set Remote
+        #Set Remote 
         err, rsp = comms_wrapper(['SREM', 'K0'])
         #Check Oven Temp
         if not err:

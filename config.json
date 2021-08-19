@@ -1,0 +1,10 @@
+{
+    "CAI_1": {
+        "host": "10.0.0.226",
+        "port": "65432",
+        "scheduled_time": "06:00",
+        "log_file": "log_CAI_1.csv"
+    }
+
+
+}

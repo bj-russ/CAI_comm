@@ -10,3 +10,5 @@ Solenoid control hardware will need to be added to select the PAG units individu
 The AK-server.py, cvs_lookup.csv and hostinfo.cfg are used to simulate the HFID responses for testing purposes.
 
 Currently the times during the sequence are shortened for testing efficiency.
+
+To run in Demo Mode, run AK-server.py first to initiate the ip adress to write to...
